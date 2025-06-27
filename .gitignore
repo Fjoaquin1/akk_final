@@ -1,0 +1,34 @@
+# Archivos específicos de entornos virtuales
+.venv/
+env/
+venv/
+__pycache__/
+
+# Archivos específicos de Django
+*.log
+*.sqlite3
+media/
+static_cdn/
+
+# Archivos específicos de Python en general
+*.pyc
+.ipynb_checkpoints/
+
+# Archivos de configuración de IDE (ej. VS Code)
+.vscode/
+
+# Archivos de sistema operativo
+.DS_Store
+Thumbs.db
+
+# Credenciales y archivos sensibles (ej. llaves de API)
+*.env
+*.ini
+
+# Directorios de módulos de Python (para evitar subir paquetes de terceros)
+# Si instalaste librerías directamente en el proyecto sin un entorno virtual,
+# es mejor no incluir estas líneas y usar un entorno virtual.
+# */__pycache__
+# /node_modules/ # Si tuvieras frontend con JS/Node
+# /build/
+# /dist/
