@@ -21,11 +21,24 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = 'django-insecure-%#2@bl(i6@2-#x@ihzc_8$(!83ih_)3s_5))u&8b!8tl&o#6ag'
+"""
+SECRET_KEY is a unique, long, and random string used by Django for cryptographic signing.
+It's crucial for security; keep it confidential, especially in production.
+"""
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
+"""
+DEBUG controls Django's debug mode. When True, Django provides detailed error pages,
+which is helpful for development. In production, this should always be False for security reasons.
+"""
 
 ALLOWED_HOSTS = []
+"""
+ALLOWED_HOSTS defines a list of host/domain names that this Django site can serve.
+This is a security measure to prevent HTTP Host header attacks.
+In development, an empty list allows all hosts by default.
+"""
 
 
 # Application definition
@@ -37,9 +50,14 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'rest_framework',
-    'tasks'
+    'rest_framework', # Django REST Framework for building web APIs.
+    'tasks' # Your custom Django application for tasks management.
 ]
+"""
+INSTALLED_APPS is a list of all Django applications activated in this project.
+It includes Django's built-in apps for admin, authentication, sessions, etc.,
+as well as third-party apps like 'rest_framework' and your custom 'tasks' app.
+"""
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
@@ -50,8 +68,17 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
+"""
+MIDDLEWARE is a list of middleware components that process requests and responses.
+These components perform various functions like security checks, session management,
+CSRF protection, authentication, and message handling.
+"""
 
 ROOT_URLCONF = 'akk_django.urls'
+"""
+ROOT_URLCONF specifies the Python module where Django should find the root URLconf
+for the project (i.e., the main urls.py file).
+"""
 
 TEMPLATES = [
     {
@@ -68,8 +95,17 @@ TEMPLATES = [
         },
     },
 ]
+"""
+TEMPLATES defines how Django loads and renders templates.
+It specifies the template engine, directories to look for templates,
+and context processors that provide common variables to templates.
+"""
 
 WSGI_APPLICATION = 'akk_django.wsgi.application'
+"""
+WSGI_APPLICATION specifies the path to the WSGI application object that Django's
+development server and production WSGI servers (like Gunicorn) use to serve your project.
+"""
 
 
 # Database
@@ -81,6 +117,11 @@ DATABASES = {
         'NAME': BASE_DIR / 'db.sqlite3',
     }
 }
+"""
+DATABASES configures the database connections for your Django project.
+'default' specifies the primary database, here configured to use SQLite,
+with the database file 'db.sqlite3' located in the project's base directory.
+"""
 
 
 # Password validation
@@ -100,26 +141,54 @@ AUTH_PASSWORD_VALIDATORS = [
         'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator',
     },
 ]
+"""
+AUTH_PASSWORD_VALIDATORS defines a list of validators used to check the strength
+of user passwords when they are created or changed.
+"""
 
 
 # Internationalization
 # https://docs.djangoproject.com/en/4.2/topics/i18n/
 
 LANGUAGE_CODE = 'en-us'
+"""
+LANGUAGE_CODE sets the default language for this Django installation.
+It affects translation, date formatting, and number formatting.
+"""
 
 TIME_ZONE = 'UTC'
+"""
+TIME_ZONE defines the default time zone for Django, which will be used for
+storing datetimes in the database and for displaying them to users.
+"""
 
 USE_I18N = True
+"""
+USE_I18N enables Django's internationalization system, allowing your project
+to be translated into different languages.
+"""
 
 USE_TZ = True
+"""
+USE_TZ enables timezone support, meaning Django will store datetimes as UTC
+in the database and convert them to the appropriate timezone when displayed.
+"""
 
 
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/4.2/howto/static-files/
 
 STATIC_URL = 'static/'
+"""
+STATIC_URL defines the URL where static files (CSS, JavaScript, images) are served.
+"""
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/4.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+"""
+DEFAULT_AUTO_FIELD specifies the type of primary key field to use for models
+that do not explicitly define one. BigAutoField provides a 64-bit integer,
+suitable for larger databases.
+"""

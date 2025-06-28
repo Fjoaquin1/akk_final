@@ -1,37 +1,48 @@
-# Logica de las vistas de la API
+# AAK-Test/django_task_api/tasks/views.py
 
-from rest_framework import viewsets, permissions, status
+from rest_framework import viewsets, permissions, status, generics
 from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.response import Response
+from django.contrib.auth.models import User
 from .models import Task, Label
-from .serializers import TaskSerializer, LabelSerializer
-
+from .serializers import TaskSerializer, LabelSerializer, UserRegistrationSerializer # Using UserRegistrationSerializer
 
 class IsOwnerOrReadOnly(permissions.BasePermission):
     """
-    Permiso personalizado para permitir que solo los propietarios de un objeto lo editen o eliminen.
-    Los métodos seguros (GET, HEAD, OPTIONS) siempre están permitidos.
+    Custom permission to only allow owners of an object to edit or delete it.
+    Read-only permissions (GET, HEAD, OPTIONS) are allowed for any authenticated user.
     """
     def has_object_permission(self, request, view, obj):
-        # Los permisos de lectura están permitidos para cualquier solicitud.
+        """
+        Check if the user has permission to perform an action on the object.
+        """
+        # Read permissions are allowed to any authenticated request.
         if request.method in permissions.SAFE_METHODS:
             return True
         
-        # Los permisos de escritura solo están permitidos para el propietario del objeto.
+        # Write permissions are only allowed to the owner of the object.
         return obj.owner == request.user
     
-
 class TaskViewSet(viewsets.ModelViewSet):
-    # --- Añade esta línea ---
+    """
+    A ViewSet for viewing and editing Task instances.
+    Provides standard CRUD operations for Task objects.
+    """
     queryset = Task.objects.all() 
-    # -------------------------
     serializer_class = TaskSerializer
     permission_classes = [permissions.IsAuthenticated, IsOwnerOrReadOnly]
+    """
+    `permission_classes`: Specifies the permissions required to access Task endpoints.
+    - `IsAuthenticated`: Ensures only authenticated users can access.
+    - `IsOwnerOrReadOnly`: Ensures users can only perform write operations (create, update, delete)
+      on tasks they own, while allowing read access to all tasks they are authorized to see.
+    """
 
     def get_queryset(self):
         """
-        Retorna el queryset de tareas. Si el usuario es staff, retorna todas las tareas.
-        De lo contrario, retorna solo las tareas que le pertenecen.
+        Retrieves the queryset of tasks.
+        If the requesting user is a staff member, all tasks are returned.
+        Otherwise, only tasks owned by the requesting user are returned.
         """
         if self.request.user.is_staff:
             return Task.objects.all()
@@ -40,76 +51,85 @@ class TaskViewSet(viewsets.ModelViewSet):
     
     def perform_create(self, serializer):
         """
-        Al crear una tarea, asigna el propietario y maneja las etiquetas.
-        Asegura que las etiquetas existan y pertenezcan al usuario.
+        Assigns the owner of a new task to the currently authenticated user.
+        Also handles the association of labels, ensuring that only valid and
+        user-owned labels can be linked to the task.
         """
-        # Obtener las IDs de las etiquetas del request, si existen.
+        # Get the list of label IDs from the request data.
         labels_ids = self.request.data.get('label_ids', []) 
         
-        # Verificar que las etiquetas existan y pertenezcan al usuario actual.
-        # Si labels_ids es None o no es iterable, se convierte a una lista vacía
+        # Ensure labels_ids is a list; if not, treat it as an empty list.
         labels_ids = labels_ids if isinstance(labels_ids, list) else [] 
         
-        # Filtra las etiquetas válidas que el usuario posee
+        # Filter for labels that exist and are owned by the current user.
         valid_labels = Label.objects.filter(id__in=labels_ids, owner=self.request.user)
         
-        # Si la cantidad de etiquetas encontradas no coincide con las IDs proporcionadas,
-        # significa que algunas etiquetas no existen o no pertenecen al usuario.
+        # Validate that all provided label IDs correspond to existing and owned labels.
         if len(valid_labels) != len(labels_ids):
             raise ValidationError(
-                {"label_ids": "Una o más etiquetas no encontradas o no pertenecen al usuario autenticado."}
+                {"label_ids": "One or more labels not found or do not belong to the authenticated user."}
             )
         
-        # Guarda la tarea asignando el propietario y las etiquetas.
+        # Save the task, setting the owner to the current user and associating the valid labels.
         serializer.save(owner=self.request.user, labels=valid_labels)
 
 
     def perform_update(self, serializer):
         """
-        Al actualizar una tarea, maneja los permisos para cambiar el propietario
-        y actualiza las etiquetas si se proporcionan.
+        Handles updating a task instance.
+        Prevents non-staff users from changing the owner of a task.
+        Updates associated labels if `label_ids` are provided in the request.
         """
-        # Evita que un usuario no-staff cambie el propietario de una tarea.
+        # Prevent non-staff users from changing the owner of a task.
+        # This check is crucial for security.
         if 'owner_id' in self.request.data and serializer.instance.owner != self.request.user and not self.request.user.is_staff:
-            raise PermissionDenied("No tiene permiso para cambiar el propietario de esta tarea.")
+            raise PermissionDenied("You do not have permission to change the owner of this task.")
         
-        # Obtener las IDs de las etiquetas del request.
-        # Usa .get('label_ids') sin un valor por defecto para saber si el cliente lo envió o no.
+        # Get the 'label_ids' from the request data. Use .get() without default to check if it was sent.
         labels_ids = self.request.data.get('label_ids') 
         
-        # Si 'label_ids' está presente en el request (incluso si es una lista vacía), procesa las etiquetas.
+        # If 'label_ids' is present in the request (even if empty), process the labels.
         if labels_ids is not None:
-            # Asegúrate de que labels_ids sea una lista
+            # Ensure labels_ids is a list.
             if not isinstance(labels_ids, list):
-                raise ValidationError({"label_ids": "El formato de label_ids debe ser una lista."})
+                raise ValidationError({"label_ids": "The format for label_ids must be a list."})
 
-            # Filtra las etiquetas válidas que el usuario posee.
+            # Filter for labels that exist and are owned by the current user.
             valid_labels = Label.objects.filter(id__in=labels_ids, owner=self.request.user)
             
-            # Valida que todas las etiquetas proporcionadas sean válidas y pertenezcan al usuario.
+            # Validate that all provided label IDs are valid and owned by the user.
             if len(valid_labels) != len(labels_ids):
                 raise ValidationError(
-                    {"label_ids": "Una o más etiquetas no encontradas o no pertenecen al usuario autenticado."}
+                    {"label_ids": "One or more labels not found or do not belong to the authenticated user."}
                 )
             
-            # Guarda la tarea con las etiquetas actualizadas.
+            # Save the task with the updated labels.
             serializer.save(labels=valid_labels)
         else:
-            # Si 'label_ids' no se proporcionó en el request, guarda sin modificar las etiquetas.
+            # If 'label_ids' was not provided in the request, save without modifying labels.
             serializer.save()
 
 
 class LabelViewSet(viewsets.ModelViewSet):
-    # --- Añade esta línea ---
+    """
+    A ViewSet for viewing and editing Label instances.
+    Provides standard CRUD operations for Label objects.
+    """
     queryset = Label.objects.all()
-    # -------------------------
     serializer_class = LabelSerializer
     permission_classes = [permissions.IsAuthenticated, IsOwnerOrReadOnly]
+    """
+    `permission_classes`: Specifies the permissions required to access Label endpoints.
+    - `IsAuthenticated`: Ensures only authenticated users can access.
+    - `IsOwnerOrReadOnly`: Ensures users can only perform write operations (create, update, delete)
+      on labels they own, while allowing read access to all labels they are authorized to see.
+    """
 
     def get_queryset(self):
         """
-        Retorna el queryset de etiquetas. Si el usuario es staff, retorna todas las etiquetas.
-        De lo contrario, retorna solo las etiquetas que le pertenecen.
+        Retrieves the queryset of labels.
+        If the requesting user is a staff member, all labels are returned.
+        Otherwise, only labels owned by the requesting user are returned.
         """
         if self.request.user.is_staff:
                 return Label.objects.all()
@@ -117,26 +137,38 @@ class LabelViewSet(viewsets.ModelViewSet):
     
     def perform_create(self, serializer):
         """
-        Al crear una etiqueta, asigna el propietario y valida que el nombre sea único para el usuario.
+        Assigns the owner of a new label to the currently authenticated user.
+        Validates that the label name is unique for that specific user.
         """
         name = serializer.validated_data.get('name')
+        # Check if a label with the same name already exists for the current user.
         if Label.objects.filter(name=name, owner=self.request.user).exists():
-            raise ValidationError({'name': 'Una etiqueta con este nombre ya existe para este usuario.'}, code='unique')
+            raise ValidationError({'name': 'A label with this name already exists for this user.'}, code='unique')
         serializer.save(owner=self.request.user)
 
 
     def perform_update(self, serializer):
         """
-        Al actualizar una etiqueta, maneja los permisos para cambiar el propietario
-        y valida que el nombre de la etiqueta siga siendo único para el usuario.
+        Handles updating a label instance.
+        Prevents non-staff users from changing the owner of a label.
+        Validates that the updated label name remains unique for the user.
         """
-        # Evita que un usuario no-staff cambie el propietario de una etiqueta.
+        # Prevent non-staff users from changing the owner of a label.
         if 'owner_id' in self.request.data and serializer.instance.owner != self.request.user and not self.request.user.is_staff:
-            raise PermissionDenied("No tiene permiso para cambiar el propietario de esta etiqueta.")
+            raise PermissionDenied("You do not have permission to change the owner of this label.")
 
         name = serializer.validated_data.get('name')
-        # Si se proporciona un nuevo nombre y es diferente al actual, valida unicidad.
+        # If a new name is provided and it's different from the current one, validate uniqueness.
         if name and name != serializer.instance.name:
             if Label.objects.filter(name=name, owner=self.request.user).exclude(id=serializer.instance.id).exists():
-                raise ValidationError({'name': 'Una etiqueta con este nombre ya existe para este usuario.'}, code='unique')
+                raise ValidationError({'name': 'A label with this name already exists for this user.'}, code='unique')
         serializer.save()
+
+
+class UserRegistrationView(generics.CreateAPIView):
+    """
+    API view for user registration. Allows new users to create an account.
+    """
+    queryset = User.objects.all()
+    serializer_class = UserRegistrationSerializer # Using the specific registration serializer
+    permission_classes = [permissions.AllowAny] # Allows unauthenticated users to access this endpoint
